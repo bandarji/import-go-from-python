@@ -1,0 +1,13 @@
+.git
+.gitignore
+**/.venv
+**/__pycache__
+**/*.pyc
+**/*.so
+**/*.dylib
+**/*.dll
+**/libcgotopypoc.h
+**/.ruff_cache
+**/.pytest_cache
+**/.mypy_cache
+**/.python-version
