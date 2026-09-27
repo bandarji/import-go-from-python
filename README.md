@@ -3,7 +3,7 @@
 Or, `import go` into Python. Proof of concept efforts comprise the source
 code and documentation in this repository. Further, the content here exists
 for demonstration purposes only, primarily constructed for a [/dev/reno][dr]
-lightening talk.
+lightning talk.
 
 If you have contributions, issues or questions, please submit those to this
 repository. As a guide more than a guru, I want to learn with the help of

@@ -1,9 +1,4 @@
-# Slides For /dev/reno Presentation
-
-## Slide One
-
-```text
-```
+# Slides For The Sept 28, 2026, `/dev/reno` Presentation
 
 ## Slide One
 
