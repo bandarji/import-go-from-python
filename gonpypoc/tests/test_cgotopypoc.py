@@ -10,6 +10,9 @@ from gonpypoc import main
 from gonpypoc.cgotopypoc import (
     CPyComplex64,
     CPyComplex128,
+    CRecord,
+    Record,
+    _as_record,
     _bind,
     _take_bytes,
     _take_string,
@@ -62,6 +65,7 @@ def test_find_source_dir_discovers_repo() -> None:
     assert source.name == "cgotopypoc"
     assert (source / "go.mod").is_file()
     assert (source / "returns.go").is_file()
+    assert (source / "record.go").is_file()
 
 
 def test_find_source_dir_raises_when_missing(
@@ -133,6 +137,10 @@ def test_bind_sets_ctypes_signatures() -> None:
         "ReturnFloat64",
         "ReturnComplex64",
         "ReturnComplex128",
+        "ReturnRecord",
+        "EchoRecord",
+        "RecordScore",
+        "RecordSize",
         "ReturnString",
         "ReturnEmptyString",
         "ReturnUnicodeString",
@@ -158,6 +166,12 @@ def test_bind_sets_ctypes_signatures() -> None:
     assert lib.ReturnFloat64.restype is ctypes.c_double
     assert lib.ReturnComplex64.restype is CPyComplex64
     assert lib.ReturnComplex128.restype is CPyComplex128
+    assert lib.ReturnRecord.restype is CRecord
+    assert lib.EchoRecord.argtypes == [CRecord]
+    assert lib.EchoRecord.restype is CRecord
+    assert lib.RecordScore.argtypes == [CRecord]
+    assert lib.RecordScore.restype is ctypes.c_double
+    assert lib.RecordSize.restype is ctypes.c_int64
     assert lib.ReturnString.restype is ctypes.c_void_p
     assert lib.ReturnEmptyString.restype is ctypes.c_void_p
     assert lib.ReturnUnicodeString.restype is ctypes.c_void_p
@@ -185,8 +199,8 @@ def test_load_library_builds_and_binds(monkeypatch: pytest.MonkeyPatch, tmp_path
 def test_take_string_decodes_and_frees(monkeypatch: pytest.MonkeyPatch) -> None:
     ptr = 0x1000
     lib = Mock()
-    monkeypatch.setattr("ctypes.string_at", lambda value: b"hello from go")
-    assert _take_string(lib, lambda: ptr) == "hello from go"
+    monkeypatch.setattr("ctypes.string_at", lambda value: b"[Go] Hello, World!")
+    assert _take_string(lib, lambda: ptr) == "[Go] Hello, World!"
     lib.FreeCString.assert_called_once_with(ptr)
 
 
@@ -228,7 +242,7 @@ def test_assert_returns_uses_existing_library(lib: ctypes.CDLL) -> None:
     by_name = {name: (value, py_type) for name, value, py_type in results}
     assert by_name["ReturnNone"] == (None, type(None))
     assert by_name["ReturnBoolTrue"] == (True, bool)
-    assert by_name["ReturnString"] == ("hello from go", str)
+    assert by_name["ReturnString"] == ("[Go] Hello, World!", str)
     assert by_name["ReturnBytes"] == (b"\x00\x7f\x80\xff", bytes)
     assert [name for name, _, _ in results] == [
         "ReturnNone",
@@ -250,7 +264,15 @@ def test_assert_returns_uses_existing_library(lib: ctypes.CDLL) -> None:
         "ReturnEmptyString",
         "ReturnUnicodeString",
         "ReturnBytes",
+        "ReturnRecord",
+        "EchoRecord",
+        "RecordScore",
+        "RecordSize",
     ]
+    assert by_name["ReturnRecord"] == (Record(-7, 2.5, True), Record)
+    assert by_name["EchoRecord"] == (Record(11, -1.25, False), Record)
+    assert by_name["RecordScore"] == (-6.0, float)
+    assert by_name["RecordSize"] == (ctypes.sizeof(CRecord), int)
 
 
 def test_main_prints_validated_returns(
@@ -270,3 +292,18 @@ def test_main_prints_validated_returns(
 def test_complex_struct_fields() -> None:
     assert CPyComplex64._fields_ == [("real", ctypes.c_float), ("imag", ctypes.c_float)]
     assert CPyComplex128._fields_ == [("real", ctypes.c_double), ("imag", ctypes.c_double)]
+
+
+def test_record_struct_fields() -> None:
+    assert CRecord._fields_ == [
+        ("count", ctypes.c_int64),
+        ("ratio", ctypes.c_double),
+        ("ready", ctypes.c_uint8),
+    ]
+
+
+def test_as_record_converts_ready_flag() -> None:
+    assert _as_record(CRecord(-7, 2.5, 1)) == Record(-7, 2.5, True)
+    assert _as_record(CRecord(0, 0.0, 0)) == Record(0, 0.0, False)
+    ready = _as_record(CRecord(1, 1.0, 2))
+    assert ready.ready is True

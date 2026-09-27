@@ -1,22 +1,32 @@
-# import-go-from-python
+# Call Go Functions From Python
 
-Proof of concept work for importing Go code in Python programs.
+Or, `import go` into Python. Proof of concept efforts comprise the source
+code and documentation in this repository. Further, the content here exists
+for demonstration purposes only, primarily constructed for a [/dev/reno][dr]
+lightening talk.
 
-The Python side of this work lives in the `gonpypoc` package. It is a [uv](https://docs.astral.sh/uv/) project: uv manages the Python version, virtual environment, dependencies, and lockfile.
+If you have contributions, issues or questions, please submit those to this
+repository. As a guide more than a guru, I want to learn with the help of
+others.
 
-## Prerequisites
+## Requirements
 
-- [uv](https://docs.astral.sh/uv/getting-started/installation/) 0.12 or later
-- [Go](https://go.dev/doc/install) 1.26 or later, with a C compiler (`gcc` / Xcode CLT) for CGO
-- Git (this repository is already a git repo)
+- [uv][wwwuv] v0.12 used for virtual environment and package management
+- [Go][wwwgo] v1.26 used for Go compilation
+- [Git][wwwgit] v2.54.0 used for revision control
+- [Docker][wwwdocker] v29.6.2 used for Linux execution and testing
 
-uv will download a managed CPython interpreter if a matching one is not already available.
+Technically, execution and testing does not require Docker. This repository
+employs Docker to best ensure this code executes in the same manner when
+done from my laptop or from yours.
 
-## Project setup (executed)
+## Initial Project Setup (Already Done)
 
-These commands created the `gonpypoc` package from the repository root.
+These commands created the `gonpypoc` Python package from the repository root.
 
-Initialize a uv **package** project in a subdirectory. `--vcs none` avoids nesting a second git repo. `--no-workspace` creates a standalone project instead of attaching to a uv workspace.
+Initialized a uv **package** project in a subdirectory. `--vcs none` avoided
+nesting a second git repo. `--no-workspace` created a standalone project
+instead of attaching to a uv workspace.
 
 ```bash
 uv init gonpypoc \
@@ -27,82 +37,48 @@ uv init gonpypoc \
   --no-workspace
 ```
 
-Create the virtual environment, resolve dependencies, and install the package in editable mode:
+These commands created the virtual environment, resolved dependencies and
+installed the package in editable mode.
 
 ```bash
 cd gonpypoc
 uv sync
 ```
 
-That produced:
+**Result**
 
-- CPython 3.14.7 (from `.python-version`)
+- Python v3.14.7 (from `.python-version`)
 - a local `.venv` under `gonpypoc/`
-- `uv.lock`
-- an editable install of `gonpypoc==0.1.0`
+- `uv.lock` frozen dependencies
+- Editable installation of `gonpypoc==0.1.0`
 
 ## Layout
 
 ```
 cgotopypoc/
-  go.mod              # Go module
-  returns.go          # CGO exports for each compatible Python return type
+  go.mod                # Go module
+  returns.go            # CGO exports for each compatible Python return type
+  record.go             # Go Record struct and its CGO exports
 gonpypoc/
-  pyproject.toml      # project metadata and build backend
-  uv.lock             # locked dependency set
-  .python-version     # pinned interpreter (3.14)
-  README.md
+  pyproject.toml        # project metadata and build backend
+  uv.lock               # locked dependency set
+  .python-version       # pinned interpreter (v3.14)
   src/gonpypoc/
-    __init__.py       # package entry; runs the CGO assertions
-    cgotopypoc.py     # builds, loads, and asserts the shared library
+    __init__.py         # package entry; runs the CGO assertions
+    cgotopypoc.py       # builds, loads and asserts the shared library
   tests/
-    conftest.py       # shared pytest fixture that loads the CGO library
-    test_cgotopypoc.py
-    test_go_returns.py
+    conftest.py         # shared pytest fixture that loads the CGO library
+    test_cgotopypoc.py  # Unit tests (pytest)
+    test_go_returns.py  # Unit tests (pytest)
 ```
 
-`.venv` is created by `uv sync` and is gitignored. The CGO shared library (`libcgotopypoc.so` / `.dylib`) and generated `libcgotopypoc.h` are also gitignored.
+The `.gitignore` file will not save superfluous files to the repository.
 
-## Daily commands
+## Testing
 
-Run all of these from `gonpypoc/`.
-
-```bash
-# Run the console script (gonpypoc:main)
-uv run gonpypoc
-
-# Recreate or update the environment from the lockfile
-uv sync
-
-# Add a runtime dependency (updates pyproject.toml and uv.lock)
-uv add <package>
-
-# Add a development dependency
-uv add --dev <package>
-
-# Remove a dependency
-uv remove <package>
-
-# Run an arbitrary command in the project environment
-uv run python -c "import gonpypoc; gonpypoc.main()"
-
-# Run the pytest suite
-uv run pytest
-```
-
-`uv run` uses the project environment automatically. You do not need to activate `.venv` first.
-
-## `pyproject.toml` notes
-
-- **Package layout:** `src/gonpypoc` via `--package`
-- **Build backend:** `uv_build`
-- **Console script:** `gonpypoc = "gonpypoc:main"`
-- **Python:** `requires-python = ">=3.14"`
-- **Authors:** filled from git (`Sean Jain Ellis <sellis@bandarji.com>`)
-
-## Unit tests (pytest)
-
-`pytest` is a development dependency. Tests cover every Python helper in `gonpypoc.cgotopypoc`, `main()`, and every CGO export.
+This repository uses [`pytest`][wwwpytest] to validate Go functions responses
+from Python invocations. The `uv` tool installs `pytest` as a development
+dependency. The following steps installed the test tooling and executed tests.
 
 ```bash
 cd gonpypoc
@@ -110,27 +86,11 @@ uv add --dev pytest
 uv run pytest
 ```
 
-Executed output:
+## CGO Shared Library
 
-```
-============================= test session starts ==============================
-platform darwin -- Python 3.14.7, pytest-9.1.1, pluggy-1.6.0
-rootdir: /Users/sellis/src/bandarji/import-go-from-python/gonpypoc
-configfile: pyproject.toml
-testpaths: tests
-collected 38 items
-
-tests/test_cgotopypoc.py ..................                              [ 47%]
-tests/test_go_returns.py ....................                            [100%]
-
-============================== 38 passed in 0.61s ==============================
-```
-
-See the [uv project guide](https://docs.astral.sh/uv/concepts/projects/) and [`uv init`](https://docs.astral.sh/uv/reference/cli/#uv-init) for more on this layout.
-
-## CGO shared library (`cgotopypoc`)
-
-`cgotopypoc` is a Go `package main` built with [`-buildmode=c-shared`](https://pkg.go.dev/cmd/go#hdr-Build_modes). Each `//export` function returns a C-compatible value that Python can import through [`ctypes`](https://docs.python.org/3/library/ctypes.html).
+The Go package `cgtopypoc` contains functions built into a
+[shared library][cgobm]. Each exported function returns a C-compatible value
+that Python imports through [`ctypes`][ctypes].
 
 Python built-in types that can cross this C ABI:
 
@@ -144,11 +104,40 @@ Python built-in types that can cross this C ABI:
 | `str` | `char*` (UTF-8) | `ReturnString`, `ReturnEmptyString`, `ReturnUnicodeString` |
 | `bytes` | `char*` + length | `ReturnBytes` |
 
-Lists, tuples, and dicts are not C-ABI types, so they are not exported. `C.CString` / `C.CBytes` allocations are released with `FreeCString`.
 
-### Executed commands
+### Go Structures
 
-Create the Go module (from the repository root):
+`record.go` defines a Go struct with three distinct field types. CGO rejects
+a Go struct in an `//export` signature
+(`Go type not supported in export: struct`), so the exported functions copy
+`Record` to and from `CRecord`, a C struct with the same field order and
+sizes. Python declares that layout as `ctypes.Structure` `CRecord` and reads
+the value as the `Record` named tuple.
+
+| Go field | Go type | C field | C type | Python field | Python type | Offset |
+| --- | --- | --- | --- | --- | --- | --- |
+| `Count` | `int64` | `count` | `int64_t` | `count` | `int` | 0 |
+| `Ratio` | `float64` | `ratio` | `double` | `ratio` | `float` | 8 |
+| `Ready` | `bool` | `ready` | `unsigned char` | `ready` | `bool` | 16 |
+
+The boolean `Ready` gets stored as `0` or `1`. Any non-zero `ready` ends up
+`true`. `RecordSize` returns `unsafe.Sizeof(Record{})` and that value matches
+`ctypes.sizeof(CRecord)`: 24 bytes on this ABI.
+
+| Export | Direction | Behavior |
+| --- | --- | --- |
+| `ReturnRecord` | Go to Python | Builds `Record{Count: -7, Ratio: 2.5, Ready: true}` and returns the copy |
+| `EchoRecord` | Python to Go to Python | Copies the incoming `CRecord` into `Record` and returns that copy |
+| `RecordScore` | Python to Go | Returns `Count * Ratio` when `Ready` is set, otherwise `0` |
+| `RecordSize` | Go to Python | Returns the Go struct size in bytes |
+
+`EchoRecord` and `RecordScore` both construct the Go struct before producing a
+result, so a mismatched field order or width fails those checks. Tests for
+each export remain in `gonpypoc/tests/test_go_returns.py`.
+
+### Building The Go Module
+
+Created the Go module (from the repository root):
 
 ```bash
 mkdir -p cgotopypoc
@@ -156,100 +145,50 @@ cd cgotopypoc
 go mod init cgotopypoc
 ```
 
-`go.mod` pins `go 1.26` so the module builds with the local toolchain (1.26.5) and the Docker toolchain (1.27.1).
+The Go version appears in `go.mod`.
 
-Build the shared library. macOS produces a `.dylib`; Linux produces a `.so`:
+Mac OS produces a `.dylib` extension for the shared library. Linux creates
+a `.so` file. Windows probably writes a `.dll` file, but I have no way to
+verify that.
 
 ```bash
-# macOS (executed locally)
+# macOS (executed locally on my development laptop)
 cd cgotopypoc
 CGO_ENABLED=1 go build -buildmode=c-shared -o libcgotopypoc.dylib .
 
-# Linux (executed in Docker)
+# Linux (executed in the Docker container)
 cd cgotopypoc
 CGO_ENABLED=1 go build -buildmode=c-shared -o libcgotopypoc.so .
 ```
 
-`gonpypoc` rebuilds that library if needed, loads it, and asserts type plus value for every export:
+**Reference Documentation**
 
-```bash
-cd gonpypoc
-uv run gonpypoc
-```
-
-Executed output:
-
-```
-cgotopypoc: all compatible Python return types validated
-  ReturnNone: None (NoneType)
-  ReturnBoolTrue: True (bool)
-  ReturnBoolFalse: False (bool)
-  ReturnInt8: -128 (int)
-  ReturnInt16: -32768 (int)
-  ReturnInt32: -2147483648 (int)
-  ReturnInt64: -9223372036854775808 (int)
-  ReturnUint8: 255 (int)
-  ReturnUint16: 65535 (int)
-  ReturnUint32: 4294967295 (int)
-  ReturnUint64: 18446744073709551615 (int)
-  ReturnFloat32: 1.5 (float)
-  ReturnFloat64: 2.718281828459045 (float)
-  ReturnComplex64: (1.5-2.5j) (complex)
-  ReturnComplex128: (1.25-2.5j) (complex)
-  ReturnString: 'hello from go' (str)
-  ReturnEmptyString: '' (str)
-  ReturnUnicodeString: 'बंदरजी' (str)
-  ReturnBytes: b'\x00\x7f\x80\xff' (bytes)
-```
-
-See [Command cgo](https://pkg.go.dev/cmd/cgo) and [Calling Go from Python via C](https://pkg.go.dev/cmd/cgo#hdr-C_references_to_Go).
+- [Command cgo][ccgo]
+- [Calling Go from Python via C][pycgo]
 
 ## Docker
 
-The `Dockerfile` builds a Linux image with the latest stable Python and Go, plus uv, the `gonpypoc` package, and a prebuilt `cgotopypoc` shared library.
+The `Dockerfile` builds a Linux image with the latest stable Python and Go,
+plus uv, the `gonpypoc` package and a prebuilt `cgotopypoc` shared library.
 
 | Tool | Version | Source |
 | --- | --- | --- |
-| Python | 3.14.7 | [`python:3.14.7-slim-trixie`](https://hub.docker.com/_/python) |
-| Go | 1.27.1 | copied from [`golang:1.27.1-trixie`](https://hub.docker.com/_/golang) |
-| uv | latest | copied from [`ghcr.io/astral-sh/uv:latest`](https://docs.astral.sh/uv/guides/integration/docker/) |
+| Python | v3.14.7 | [`python:3.14.7-slim-trixie`][dpyimage] |
+| Go | v1.27.1 | copied from [`golang:1.27.1-trixie`][dgoimage] |
+| uv | latest | copied from [`ghcr.io/astral-sh/uv:latest`][duv] |
 
-`build-essential` is installed so CGO can compile the shared library. The image copies `cgotopypoc/`, runs `go build -buildmode=c-shared -o libcgotopypoc.so .`, and sets `CGOTOPYPOC_DIR=/app/cgotopypoc`.
+For CGO to compile the shared library, the Docker container includes the
+`build-essential` package.
 
-Build and run from the repository root:
-
-```bash
-docker build -t gonpypoc .
-docker run --rm gonpypoc
-```
-
-The container builds (if needed) and imports the `.so`, then runs the same assertions as `uv run gonpypoc`. Executed output matches the local run above.
-
-Confirm the toolchains in the image:
-
-```bash
-docker run --rm --entrypoint bash gonpypoc -c \
-  'python --version && go version && uv --version && gcc --version | head -1'
-```
-
-Verified output:
-
-```
-Python 3.14.7
-go version go1.27.1 linux/arm64
-uv 0.12.17 (aarch64-unknown-linux-musl)
-gcc (Debian 14.2.0-19) 14.2.0
-```
-
-The image is built with `UV_NO_DEV=1`, so pytest is not installed. Open a shell with dev dependencies enabled, then sync and run the suite. The shell starts in `/app/gonpypoc`:
-
-```bash
-docker run --rm -it -e UV_NO_DEV=0 --entrypoint bash gonpypoc
-```
-
-```bash
-uv sync --locked --no-editable
-uv run pytest
-```
-
-See the [uv Docker guide](https://docs.astral.sh/uv/guides/integration/docker/) for more on this layout.
+[dr]: https://www.meetup.com/dev-reno/
+[wwwuv]: https://docs.astral.sh/uv/getting-started/installation/
+[wwwgo]: https://go.dev/doc/install
+[wwwgit]: https://git-scm.com/install/
+[wwwdocker]: https://docs.docker.com/get-started/get-docker/
+[cgobm]: https://pkg.go.dev/cmd/go#hdr-Build_modes
+[ctypes]: https://docs.python.org/3/library/ctypes.html
+[ccgo]: https://pkg.go.dev/cmd/cgo
+[pycgo]: https://pkg.go.dev/cmd/cgo#hdr-C_references_to_Go
+[dpyimage]: https://hub.docker.com/_/python
+[dgoimage]: https://hub.docker.com/_/golang
+[duv]: https://docs.astral.sh/uv/guides/integration/docker/
