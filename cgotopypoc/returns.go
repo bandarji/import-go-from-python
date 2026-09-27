@@ -96,7 +96,7 @@ func ReturnComplex128() C.CPyComplex128 {
 
 //export ReturnString
 func ReturnString() *C.char {
-	return C.CString("hello from go")
+	return C.CString("[Go] Hello, World!")
 }
 
 //export ReturnEmptyString
