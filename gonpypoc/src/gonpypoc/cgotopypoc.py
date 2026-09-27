@@ -8,7 +8,7 @@ import platform
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 
 class CPyComplex64(ctypes.Structure):
@@ -17,6 +17,22 @@ class CPyComplex64(ctypes.Structure):
 
 class CPyComplex128(ctypes.Structure):
     _fields_ = [("real", ctypes.c_double), ("imag", ctypes.c_double)]
+
+
+class CRecord(ctypes.Structure):
+    """C layout of the Go Record struct: int64, float64, and bool."""
+
+    _fields_ = [
+        ("count", ctypes.c_int64),
+        ("ratio", ctypes.c_double),
+        ("ready", ctypes.c_uint8),
+    ]
+
+
+class Record(NamedTuple):
+    count: int
+    ratio: float
+    ready: bool
 
 
 def library_filename() -> str:
@@ -85,6 +101,12 @@ def _bind(lib: ctypes.CDLL) -> None:
     lib.ReturnFloat64.restype = ctypes.c_double
     lib.ReturnComplex64.restype = CPyComplex64
     lib.ReturnComplex128.restype = CPyComplex128
+    lib.ReturnRecord.restype = CRecord
+    lib.EchoRecord.argtypes = [CRecord]
+    lib.EchoRecord.restype = CRecord
+    lib.RecordScore.argtypes = [CRecord]
+    lib.RecordScore.restype = ctypes.c_double
+    lib.RecordSize.restype = ctypes.c_int64
     lib.ReturnString.restype = ctypes.c_void_p
     lib.ReturnEmptyString.restype = ctypes.c_void_p
     lib.ReturnUnicodeString.restype = ctypes.c_void_p
@@ -108,6 +130,10 @@ def _take_string(lib: ctypes.CDLL, fn: Callable[[], int | None]) -> str:
         return ctypes.string_at(ptr).decode("utf-8")
     finally:
         lib.FreeCString(ptr)
+
+
+def _as_record(raw: CRecord) -> Record:
+    return Record(raw.count, raw.ratio, bool(raw.ready))
 
 
 def _take_bytes(lib: ctypes.CDLL) -> bytes:
@@ -179,7 +205,7 @@ def assert_returns(lib: ctypes.CDLL | None = None) -> list[tuple[str, Any, type]
 
     string_value = _take_string(lib, lib.ReturnString)
     assert type(string_value) is str
-    assert string_value == "hello from go"
+    assert string_value == "[Go] Hello, World!"
     results.append(("ReturnString", string_value, str))
 
     empty_string = _take_string(lib, lib.ReturnEmptyString)
@@ -196,5 +222,25 @@ def assert_returns(lib: ctypes.CDLL | None = None) -> list[tuple[str, Any, type]
     assert type(bytes_value) is bytes
     assert bytes_value == b"\x00\x7f\x80\xff"
     results.append(("ReturnBytes", bytes_value, bytes))
+
+    record = _as_record(lib.ReturnRecord())
+    assert type(record) is Record
+    assert record == Record(-7, 2.5, True)
+    results.append(("ReturnRecord", record, Record))
+
+    echoed = _as_record(lib.EchoRecord(CRecord(11, -1.25, 0)))
+    assert type(echoed) is Record
+    assert echoed == Record(11, -1.25, False)
+    results.append(("EchoRecord", echoed, Record))
+
+    score = lib.RecordScore(CRecord(-4, 1.5, 1))
+    assert type(score) is float
+    assert score == -6.0
+    results.append(("RecordScore", score, float))
+
+    size = lib.RecordSize()
+    assert type(size) is int
+    assert size == ctypes.sizeof(CRecord)
+    results.append(("RecordSize", size, int))
 
     return results
