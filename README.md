@@ -3,7 +3,7 @@
 Or, `import go` into Python. Proof of concept efforts comprise the source
 code and documentation in this repository. Further, the content here exists
 for demonstration purposes only, primarily constructed for a [/dev/reno][dr]
-lightning talk.
+lightning talk. To view the slide presentation, click [here][presentation].
 
 If you have contributions, issues or questions, please submit those to this
 repository. As a guide more than a guru, I want to learn with the help of
@@ -181,6 +181,7 @@ For CGO to compile the shared library, the Docker container includes the
 `build-essential` package.
 
 [dr]: https://www.meetup.com/dev-reno/
+[presentation]: https://docs.google.com/presentation/d/1b6v49vVIAyuZa3kUWfpnX1G3Lo9DH0yu5STnj1W9Ymc/
 [wwwuv]: https://docs.astral.sh/uv/getting-started/installation/
 [wwwgo]: https://go.dev/doc/install
 [wwwgit]: https://git-scm.com/install/
